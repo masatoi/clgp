@@ -7,8 +7,7 @@
   (:export #:missing
            #:supplied-p
            #:define-typed-function
-           #:random-string
-           #:random-uuid))
+           #:random-string))
 (in-package #:clgp/core/utils)
 
 (defmacro eval-when-always (&body body)
@@ -69,6 +68,3 @@
   (let ((string (make-string length)))
     (dotimes (i length string)
       (setf (aref string i) (random-char)))))
-
-(defun random-uuid ()
-  (string-downcase (format nil "~A" (uuid:make-v4-uuid))))

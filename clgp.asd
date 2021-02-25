@@ -5,7 +5,6 @@
   :license "MIT"
   :class :package-inferred-system
   :depends-on (:alexandria
-               :uuid
                :iterate
                :clgp/core/clgp)
   :description ""

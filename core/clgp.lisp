@@ -3,7 +3,7 @@
         #:iterate)
   (:import-from #:clgp/core/utils
                 #:define-typed-function
-                #:random-uuid)
+                #:random-string)
   (:import-from #:alexandria
                 #:if-let
                 #:when-let)
@@ -40,7 +40,7 @@
 ;;; Classes
 
 (defclass graph ()
-  ((id :initform (random-uuid)
+  ((id :initform (random-string)
        :accessor graph-id)
    (plots :initarg :plots
           :initform nil
@@ -72,7 +72,7 @@
             :accessor graph-gp-file)))
 
 (defclass plot ()
-  ((id :initform (random-uuid)
+  ((id :initform (random-string)
        :accessor plot-id)
    (style :initarg :style
           :initform :lines
