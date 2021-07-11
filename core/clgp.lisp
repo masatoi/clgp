@@ -12,10 +12,15 @@
            #:graph))
 (in-package #:clgp/core/clgp)
 
-(define-condition gnuplot-error (error) ())
+;;; Variables
 
 (defparameter *gnuplot-command* "gnuplot")
 (defparameter *tmp-dir* #P"/tmp/")
+
+
+;;; 
+
+(define-condition gnuplot-error (error) ())
 
 (defun working-dir ()
   (let ((working-dir-path (merge-pathnames "clgp/" (uiop:ensure-directory-pathname *tmp-dir*))))

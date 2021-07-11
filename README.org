@@ -19,4 +19,38 @@ ros install masatoi/clgp
 
 ** Usage
 
+The first step is to prepare the data.
+#+begin_src lisp
+(in-package :clgp)
+
+(defparameter x (loop for x from (- pi) to pi by 0.1 collect x))
+(defparameter y1 (mapcar #'sin x))
+(defparameter y2 (mapcar #'cos x))
+(defparameter y3 (mapcar #'tan x))
+(defparameter y4 (mapcar #'exp x))
+#+end_src
+
+Plot from just sequence of numbers.
+
+#+begin_src lisp
+(plot y1)
+#+end_src
+
+[[./docs/img/clgp-sin.png]]
+
+Multiple plot from sequence of sequence.
+
+#+begin_src lisp
+(plot (list y1 y2))
+#+end_src
+
+[[./docs/img/clgp-sin-cos.png]]
+
+#+begin_src lisp
+(plot (line y1))
+
+(plot (list (line y1)
+            (line y2)))
+#+end_src
+
 See ~examples/plot.lisp~.
