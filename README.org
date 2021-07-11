@@ -1,5 +1,22 @@
-* Clgp 
+* clgp 
+
+Clgp is a gnuplot frontend based on Common Lisp CLOS system.
+This is alpha version yet. The APIs may change in the future.
+
+** Installation
+
+Clgp requires gnuplot (version 4 or later).
+
+#+begin_src sh
+sudo apt install gnuplot
+#+end_src
+
+To install with Rowswell, 
+
+#+begin_src sh
+ros install masatoi/clgp
+#+end_src
 
 ** Usage
 
-** Installation
+See ~examples/plot.lisp~.
