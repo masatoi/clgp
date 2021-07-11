@@ -2,8 +2,6 @@
   (:use #:cl)
   (:import-from #:alexandria
                 #:symbolicate)
-  (:import-from #:uuid
-                #:make-v4-uuid )
   (:export #:missing
            #:supplied-p
            #:define-typed-function
@@ -64,7 +62,7 @@
       (1 (code-char (+ (char-code #\a) (random 26))))
       (2 (code-char (+ (char-code #\A) (random 26)))))))
 
-(defun random-string (&optional (length 40))
+(defun random-string (&optional (length 64))
   (let ((string (make-string length)))
     (dotimes (i length string)
       (setf (aref string i) (random-char)))))

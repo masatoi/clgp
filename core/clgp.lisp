@@ -9,14 +9,18 @@
                 #:when-let)
   (:nicknames #:clgp)
   (:export #:plot
-           #:graph
-           #:display))
+           #:graph))
 (in-package #:clgp/core/clgp)
 
 (define-condition gnuplot-error (error) ())
 
 (defparameter *gnuplot-command* "gnuplot")
 (defparameter *tmp-dir* #P"/tmp/")
+
+(defun working-dir ()
+  (let ((working-dir-path (merge-pathnames "clgp/" (uiop:ensure-directory-pathname *tmp-dir*))))
+    (uiop:ensure-all-directories-exist (list working-dir-path))
+    working-dir-path))
 
 (defun run (gp-file)
   (check-type gp-file (or string pathname))
@@ -27,13 +31,13 @@
 (defgeneric dump-dat (stream object))
 (defgeneric delete-dat-file (object))
 
-(defun delete-all-dat-files ()
+(defun delete-all-files ()
   (let ((dat-files
           (remove-if-not (lambda (p)
-                           (and (= (length (pathname-name p)) 17)
-                                (equal (subseq (pathname-name p) 0 5) "clgp-")
-                                (equal (pathname-type p) "dat")))
-                         (uiop:directory-files *tmp-dir*))))
+                           (and (equal (subseq (pathname-name p) 0 5) "clgp-")
+                                (or (equal (pathname-type p) "dat")
+                                    (equal (pathname-type p) "gp"))))
+                         (uiop:directory-files (working-dir)))))
     (dolist (f dat-files)
       (uiop:delete-file-if-exists f))))
 
@@ -42,10 +46,10 @@
 (defclass graph ()
   ((id :initform (random-string)
        :accessor graph-id)
-   (plots :initarg :plots
+   (seqs :initarg :seqs
           :initform nil
-          :type (or list vector)
-          :accessor graph-plots)
+          :type sequence
+          :accessor graph-seqs)
    (legend :initarg :legend
            :initform nil
            :accessor graph-legend)
@@ -71,67 +75,108 @@
             :initform nil
             :accessor graph-gp-file)))
 
-(defclass plot ()
+(defclass seq ()
   ((id :initform (random-string)
-       :accessor plot-id)
+       :accessor seq-id)
    (style :initarg :style
           :initform :lines
           :type (member :lines :points :impulses)
-          :accessor plot-style)
+          :accessor seq-style)
    (title :initarg :title
           :initform ""
           :type string
-          :accessor plot-title)
+          :accessor seq-title)
    (x :initform nil
       :initarg :x
-      :type (or list vector)
-      :accessor plot-x)
+      :type sequence
+      :accessor seq-x)
    (y :initform nil
       :initarg :y
-      :type (or list vector)
-      :accessor plot-y)
+      :type sequence
+      :accessor seq-y)
    (data-file :initform nil
               :type (or null pathname)
-              :accessor plot-data-file)
+              :accessor seq-data-file)
    (axis :initarg :axis
          :initform :x1y1
          :type (member :x1y1 :x2y2)
-         :accessor plot-axis)))
+         :accessor seq-axis)))
 
-(define-typed-function plot ((y (or list vector)))
-    ((x (or list vector null))
-     (style (member :lines :points :impulses) :lines)
-     (title string "")
-     (axis (member :x1y1 :x2y2) :x1y1))
-  "Constructor of plot"
-  (assert (every #'numberp y))
-  (when x (assert (every #'numberp x)))
-  (make-instance 'plot :y y :x x :style style :title title :axis axis))
+(defun seqp (object)
+  (typep object 'seq))
 
-(defmethod delete-dat-file ((plot plot))
-  (uiop:delete-file-if-exists (plot-data-file plot)))
-
-(defmethod delete-dat-file ((graph graph))
-  (dolist (plot (graph-plots graph))
-    (delete-dat-file plot)))
-
-(defmethod initialize-instance ((plot plot) &rest initargs)
+(defmethod initialize-instance ((seq seq) &rest initargs)
   (declare (ignore initargs))
   (call-next-method)
-  (let ((file-path (merge-pathnames (pathname (format nil "clgp-~A.dat" (plot-id plot)))
-                                    *tmp-dir*)))
+  (let ((file-path (merge-pathnames (pathname (format nil "clgp-~A.dat" (seq-id seq)))
+                                    (working-dir))))
     (with-open-file (file file-path
                         :direction :output
                         :if-exists :supersede)
-      (dump-dat file plot))
-    (setf (plot-data-file plot) file-path)
-    plot))
+      (dump-dat file seq))
+    (setf (seq-data-file seq) file-path)
+    seq))
+
+(define-typed-function seq ((y sequence))
+    ((x (or sequence null))
+     (style (member :lines :points :impulses) :lines)
+     (title string "")
+     (axis (member :x1y1 :x2y2) :x1y1))
+  "Constructor of seq"
+  (assert (every #'numberp y))
+  (when x (assert (every #'numberp x)))
+  (make-instance 'seq :y y :x x :style style :title title :axis axis))
+
+(defclass line (seq) ())
+
+(define-typed-function line ((y sequence))
+    ((x (or sequence null))
+     (title string "")
+     (axis (member :x1y1 :x2y2) :x1y1))
+  "Constructor of line"
+  (make-instance 'line :y y :x x :style :lines :title title :axis axis))
+
+(defclass points (seq) ())
+
+(define-typed-function points ((y sequence))
+    ((x (or sequence null))
+     (title string "")
+     (axis (member :x1y1 :x2y2) :x1y1))
+  "Constructor of points"
+  (make-instance 'points :y y :x x :style :points :title title :axis axis))
+
+(defclass impulses (seq) ())
+
+(define-typed-function impulses ((y sequence))
+    ((x (or sequence null))
+     (title string "")
+     (axis (member :x1y1 :x2y2) :x1y1))
+  "Constructor of impulses"
+  (make-instance 'impulses :y y :x x :style :impulses :title title :axis axis))
+
+;;; delete temp files
+
+(defmethod delete-dat-file ((seq seq))
+  (uiop:delete-file-if-exists (seq-data-file seq)))
+
+(defmethod delete-dat-file ((graph graph))
+  (dolist (seq (graph-seqs graph))
+    (delete-dat-file seq)))
+
+(defmethod delete-gp-file ((graph graph))
+  (uiop:delete-file-if-exists (graph-gp-file graph)))
+
+;;; dump gp file
 
 (defun comma-separated-concatenate (string-list)
   (reduce (lambda (s1 s2) (concatenate 'string s1 "," s2))
           string-list))
 
 (defmethod dump-gp ((stream stream) (graph graph))
+
+  #+(or unix linux)
+  (format stream "set terminal x11~%")
+
   ;; Main title
   (when (graph-title graph)
     (format stream "set title \"~A\"~%" (graph-title graph)))
@@ -168,16 +213,16 @@
   ;; key
   (format stream "plot ~A~%"
           (comma-separated-concatenate
-           (iter (for plot in-sequence (graph-plots graph))
+           (iter (for seq in-sequence (graph-seqs graph))
              (collect (format nil "\"~A\" using 1:2 with ~A title \"~A\" axis ~A"
-                              (plot-data-file plot)
-                              (string-downcase (plot-style plot))
-                              (plot-title plot)
-                              (string-downcase (plot-axis plot))))))))
+                              (seq-data-file seq)
+                              (string-downcase (seq-style seq))
+                              (seq-title seq)
+                              (string-downcase (seq-axis seq))))))))
 
-(defmethod dump-dat ((stream stream) (plot plot))
-  (let ((x-seq (plot-x plot))
-        (y-seq (plot-y plot)))
+(defmethod dump-dat ((stream stream) (seq seq))
+  (let ((x-seq (seq-x seq))
+        (y-seq (seq-y seq)))
     (if x-seq
         (iter (for x in-sequence x-seq)
               (for y in-sequence y-seq)
@@ -186,8 +231,11 @@
               (for y in-sequence y-seq)
               (format stream "~f ~f~%" x y)))))
 
-(defun graph (plots &key title x-label y-label x-range y-range aspect-ratio)
-  (let* ((graph (make-instance 'graph :plots plots
+(defun graph (seq-or-seqs &key title x-label y-label x-range y-range aspect-ratio)
+  (check-type seq-or-seqs (or seq sequence))
+  (when (typep seq-or-seqs 'sequence)
+    (assert (every #'seqp seq-or-seqs)))
+  (let* ((graph (make-instance 'graph :seqs (if (typep seq-or-seqs 'sequence) seq-or-seqs (list seq-or-seqs))
                                       :title title
                                       :x-label x-label
                                       :y-label y-label
@@ -195,7 +243,7 @@
                                       :y-range y-range
                                       :aspect-ratio aspect-ratio))
          (file-path (merge-pathnames (pathname (format nil "clgp-~A.gp" (graph-id graph)))
-                                     *tmp-dir*)))
+                                     (working-dir))))
     (setf (graph-gp-file graph) file-path)
     (with-open-file (file file-path
                           :direction :output
@@ -203,5 +251,42 @@
       (dump-gp file graph))
     graph))
 
-(defmethod display ((graph graph))
+;;; plot methods
+
+(defgeneric plot (object)
+  (:documentation "plot data
+
+Examples:
+
+;; Plot single line from sequence of numbers
+(plot '(1 2 3))
+
+;; Multiple plot
+(plot '((1 2 3)
+        (3 2 1)))
+"))
+
+(defmethod plot ((graph graph))
   (run (graph-gp-file graph)))
+
+(defmethod plot ((seq seq))
+  (let ((g (graph seq)))
+    (plot g)))
+
+(defmethod plot ((s sequence))
+  (let ((g (cond
+             ;; sequence of numbers
+             ((every #'numberp s)
+              (graph (line s)))
+             ;; sequence of sequence of numbers
+             ((every (lambda (in-s)
+                       (and (typep in-s 'sequence)
+                            (every #'numberp in-s)))
+                     s)
+              (graph (iter (for in-s in-sequence s)
+                       (collect (line in-s)))))
+             ;; sequence of seq object
+             ((every #'seqp s) (graph s))
+             ;; others
+             (t (error "Not a sequence of numbers, nor sequence of sequence.")))))
+    (plot g)))
